@@ -277,6 +277,7 @@ impl pallet_sudo::Config for Runtime {
 /// Configure the pallet-kitten in pallets/kitten.
 impl pallet_kitten::Config for Runtime {
 	type Event = Event;
+	type Currency = Balances; // <-- Add this line
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -295,7 +296,7 @@ construct_runtime!(
 		TransactionPayment: pallet_transaction_payment,
 		Sudo: pallet_sudo,
 		// Include the custom logic from the pallet-template in the runtime.
-		TemplateModule: pallet_kitten,
+		SubstrateKitties: pallet_kitten,
 	}
 );
 
