@@ -61,13 +61,37 @@ pub mod pallet {
     // Errors.
     #[pallet::error]
     pub enum Error<T> {
-        // TODO Part III
+		KittyCntOverflow,
+		/// An account cannot own more Kitties than `MaxKittyCount`.
+		ExceedMaxKittyOwned,
+		/// Buyer cannot be the owner.
+		BuyerIsKittyOwner,
+		/// Cannot transfer a kitty to its owner.
+		TransferToSelf,
+		/// Handles checking whether the Kitty exists.
+		KittyNotExist,
+		/// Handles checking that the Kitty is owned by the account transferring, buying or setting a price for it.
+		NotKittyOwner,
+		/// Ensures the Kitty is for sale.
+		KittyNotForSale,
+		/// Ensures that the buying price is greater than the asking price.
+		KittyBidPriceTooLow,
+		/// Ensures that an account has enough funds to purchase a Kitty.
+		NotEnoughBalance,
     }
 
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        // TODO Part III
+		// A new Kitty was sucessfully created. \[sender, kitty_id\]
+		Created(T::AccountId, T::Hash),
+		// Kitty price was sucessfully set. \[sender, kitty_id, new_price\]
+		PriceSet(T::AccountId, T::Hash, Option<BalanceOf<T>>),
+		// A Kitty was sucessfully transferred. \[from, to, kitty_id\]
+		Transferred(T::AccountId, T::AccountId, T::Hash),
+		// A Kitty was sucessfully bought. \[buyer, seller, kitty_id, bid_price\]
+		Bought(T::AccountId, T::AccountId, T::Hash, BalanceOf<T>),
+		// Handles arithmetic overflow when incrementing the Kitty counter.
     }
 
     #[pallet::storage]
@@ -101,7 +125,17 @@ pub mod pallet {
     #[pallet::call]
     impl<T: Config> Pallet<T> {
 
-        // TODO Part III: create_kitty
+        #[pallet::weight(100)]
+		pub fn create_kitty(origin: OriginFor<T>) -> DispatchResult {
+			let sender = ensure_signed(origin)?; // <- add this line
+			let kitty_id = Self::mint(&sender, None, None)?; // <- add this line
+			// Logging to the console
+			log::info!("A kitty is born with ID: {:?}.", kitty_id); // <- add this line
+
+			Self::deposit_event(Event::Created(sender, kitty_id));
+
+			Ok(())
+		}
 
         // TODO Part III: set_price
 
@@ -132,7 +166,34 @@ pub mod pallet {
 		}
 
         // TODO Part III: helper functions for dispatchable functions
+		// Helper to mint a Kitty.
+		pub fn mint(
+			owner: &T::AccountId,
+			dna: Option<[u8; 16]>,
+			gender: Option<Gender>,
+		) -> Result<T::Hash, Error<T>> {
+			let kitty = Kitty::<T> {
+				dna: dna.unwrap_or_else(Self::gen_dna),
+				price: None,
+				gender: gender.unwrap_or_else(Self::gen_gender),
+				owner: owner.clone(),
+			};
 
+			let kitty_id = T::Hashing::hash_of(&kitty);
+
+			// Performs this operation first as it may fail
+			let new_cnt = Self::kitty_cnt().checked_add(1)
+				.ok_or(<Error<T>>::KittyCntOverflow)?;
+
+			// Performs this operation first because as it may fail
+			<KittiesOwned<T>>::try_mutate(&owner, |kitty_vec| {
+				kitty_vec.try_push(kitty_id)
+			}).map_err(|_| <Error<T>>::ExceedMaxKittyOwned)?;
+
+			<Kitties<T>>::insert(kitty_id, kitty);
+			<KittyCnt<T>>::put(new_cnt);
+			Ok(kitty_id)
+		}
         // TODO: increment_nonce, random_hash, mint, transfer_from
 
     }
