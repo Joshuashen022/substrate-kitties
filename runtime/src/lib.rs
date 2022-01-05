@@ -199,6 +199,13 @@ parameter_types! {
 	pub const MaxAuthorities: u32 = 32;
 }
 
+parameter_types! {              // <- add this macro
+    // One can own at most 9,999 Kitties
+    pub const MaxKittyOwned: u32 = 9999;
+}
+
+
+
 impl pallet_aura::Config for Runtime {
 	type AuthorityId = AuraId;
 	type DisabledValidators = ();
@@ -277,7 +284,9 @@ impl pallet_sudo::Config for Runtime {
 /// Configure the pallet-kitten in pallets/kitten.
 impl pallet_kitten::Config for Runtime {
 	type Event = Event;
-	type Currency = Balances; // <-- Add this line
+	type Currency = Balances;
+	type KittyRandomness = RandomnessCollectiveFlip;
+	type MaxKittyOwned = MaxKittyOwned;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
